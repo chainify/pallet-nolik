@@ -1,8 +1,8 @@
-# Pallet n0l1k
+# Pallet Nolik
 A [Substrate](https://substrate.io) FRAME pallet for sending encrypted messages between blockchain accounts
 
 ## Overview
-N0l1k (pronounced as "nolik" from No Leak) is a protocol for delivering digital content for web 3.0.
+Nolik is a protocol for delivering digital content for web 3.0.
 It is designed to connect people without any form of censorship or third-party control.
 That is possible due to a combination of blockchain and [IPFS](https://ipfs.io) technologies and a [serviceless](#serviceless) approach.
 
@@ -27,28 +27,11 @@ The protocol allows to:
 
 ## ServiceLess
 This approach stands for removing third parties or any form of centralization.
-
-### Key design principles
-1. No power of one human over another
-2. No single point of failure
-3. No need to trust the application
-
-### The Why
-Any human is a free individual that can't be oppressed by another human.
-It may not seem that obvious, but centralization is a also form of oppression.
-It concentrates power in someone's hands and leads to several major problems:
-* Makes people dependent on others who control their data, assets, their rights;
-* Creates a single point of failure which can be attacked or blocked;
-* Creates a need to trust and rely on a single source of truth;
-
-The concept of centralization is broken by design.
-A great example of that would be:
-* The [block of ProtonMail](https://protonmail.com/blog/russia-block/) in Russia;
-* The [ban of a Twitter account](https://blog.twitter.com/en_us/topics/company/2020/suspension) of Donald Trump;
-* The [drop of Papler](https://time.com/5929888/amazon-parler-aws/) social network;
-
-In oppose to that, blockchain is decentralized and naturally fixes the problems described above.
-
-
-
+Regarding Nolik protocol, this means that there are no back-end servers that connect the sender and recipient of a message.
+The message is composed, encrypted, sent, and received on the client-side.
+The blockchain is used as a transport layer that broadcasts the IPFS hash.
+The file with encrypted content is stored in the IPFS network.
+The message can be sent and broadcasted only if the sender has a right to do it.
+The rights are set by the recipient and configured with a white list and a black list of senders.
+This simple but powerful combination allows communication between users without a third party.
 
