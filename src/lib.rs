@@ -1,5 +1,10 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
+
 pub use pallet::*;
 
 #[frame_support::pallet]
@@ -37,48 +42,24 @@ pub mod pallet {
     // Errors.
     #[pallet::error]
     pub enum Error<T> {
-        // #1
-        /// Handles checking whether the Account exists
-        AccountExist,
-        // #2
-        /// Handles checking whether the Account exists
-        AccountNotExist,
-        // #3
-        /// Handles checking whether the address is owned
-        AddressOwned,
-        // #4
-        /// Handles checking whether the address is owned
+        /// Handles checking whether the address is owned by account
         AddressNotOwned,
-        // #5
         /// Handkes checking whether trying to add the same address to white list or black list
         SameAddress,
-        // #6
-        /// Address is in white list
-        AddressInWhiteList,
-        // #7
+        /// Handles checking whether the address in black list of recipient
+        AddressInBlackList,
+        /// Handles checking whether the address is already in white list
+        AlreadyInWhiteList,
         /// Address is not in white list
         AddressNotInWhiteList,
-        // #8
-        /// Address is in black list
-        AddressInBlackList,
-        // #9
-        /// Address is not in black list
-        AddressNotInBlackList,
-        // #10
+        /// Handles checking whether the address is already in black list
+        AlreadyInBlackList,
         /// An account cannot own more Addresses than `MaxAddressOwned`
         ExceedMaxAddressOwners,
-        // #11
         /// An account cannot add Addresses to White List more than `MaxWhiteListAddress`
         ExceedMaxWhiteListAddress,
-        // #12
         /// An account cannot add Addresses to Black List more than `MaxWhiteListAddress`
         ExceedMaxBlackListAddress,
-        // #13
-        /// Checks whether the message has been previously sent
-        DuplicateMessage,
-        // #14
-        /// Checks whether the address has a white list
-        NoWhiteList,
     }
 
     // Events.
@@ -136,7 +117,11 @@ pub mod pallet {
 
             let owner = ensure_signed(origin)?;
 
-            ensure!(Self::is_address_owned_by_anyone(&address)?, <Error<T>>::AddressNotOwned);
+            let has_owners = Self::has_owners(&address);
+            if has_owners {
+                ensure!(Self::is_owned(&owner, &address), <Error<T>>::AddressNotOwned);
+            }
+            
 
             <AddressOwners<T>>::try_mutate(&address, |owner_vec| {
                 owner_vec.try_push(owner.clone())
@@ -156,9 +141,9 @@ pub mod pallet {
             let account = ensure_signed(origin)?;
 
             ensure!(add_to != new_address, <Error<T>>::SameAddress);
-            ensure!(Self::is_address_owned_by_account(&account, &add_to)?, <Error<T>>::AddressNotOwned);
-            ensure!(Self::not_in_white_list(&add_to, &new_address)?, <Error<T>>::AddressInWhiteList);
-            ensure!(Self::not_in_black_list(&add_to, &new_address)?, <Error<T>>::AddressInBlackList);
+            ensure!(Self::is_owned(&account, &add_to), <Error<T>>::AddressNotOwned);
+            ensure!(Self::not_in_white_list(&add_to, &new_address), <Error<T>>::AlreadyInWhiteList);
+            ensure!(Self::not_in_black_list(&add_to, &new_address), <Error<T>>::AlreadyInBlackList);
 
             <WhiteLists<T>>::try_mutate(&add_to, |address_vec| {
                 address_vec.try_push(new_address.clone())
@@ -178,9 +163,9 @@ pub mod pallet {
             let account = ensure_signed(origin)?;
 
             ensure!(add_to != new_address, <Error<T>>::SameAddress);
-            ensure!(Self::is_address_owned_by_account(&account, &add_to)?, <Error<T>>::AddressNotOwned);
-            ensure!(Self::not_in_white_list(&add_to, &new_address)?, <Error<T>>::AddressInWhiteList);
-            ensure!(Self::not_in_black_list(&add_to, &new_address)?, <Error<T>>::AddressInBlackList);
+            ensure!(Self::is_owned(&account, &add_to), <Error<T>>::AddressNotOwned);
+            ensure!(Self::not_in_white_list(&add_to, &new_address), <Error<T>>::AlreadyInWhiteList);
+            ensure!(Self::not_in_black_list(&add_to, &new_address), <Error<T>>::AlreadyInBlackList);
 
             <BlackLists<T>>::try_mutate(&add_to, |address_vec| {
                 address_vec.try_push(new_address.clone())
@@ -200,12 +185,12 @@ pub mod pallet {
             ) -> DispatchResult {
             
             let account = ensure_signed(origin)?;
-            ensure!(Self::is_address_owned_by_account(&account, &sender)?, <Error<T>>::AddressNotOwned);
-            ensure!(Self::not_in_black_list(&recipient, &sender)?, <Error<T>>::AddressInBlackList);
+            ensure!(Self::is_owned(&account, &sender), <Error<T>>::AddressNotOwned);
+            ensure!(Self::not_in_black_list(&recipient, &sender), <Error<T>>::AddressInBlackList);
 
-            let with_white_list = Self::has_white_list(&recipient)?;
+            let with_white_list = Self::has_white_list(&recipient);
             if with_white_list {
-                ensure!(Self::white_list_contains_address(&recipient, &sender)?, <Error<T>>::AddressNotInWhiteList);
+                ensure!(Self::in_white_list(&recipient, &sender), <Error<T>>::AddressNotInWhiteList);
             }
 
             let sender_messages_count = match Self::messages_count(&sender) {
@@ -232,55 +217,52 @@ pub mod pallet {
 
 
     impl<T: Config> Pallet<T> {
-        pub fn is_address_owned_by_account(
-            account: &T::AccountId,
-            address: &Vec<u8>) -> Result<bool, Error<T>> {
-
+        pub fn has_owners(address: &Vec<u8>) -> bool {
+            let owners = <AddressOwners<T>>::get(address).into_inner();
+            match owners.len() > 0 {
+                true => true,
+                false => false,
+            }
+        }
+        pub fn is_owned(account: &T::AccountId, address: &Vec<u8>) -> bool {
             let owners = <AddressOwners<T>>::get(address).into_inner();
             match owners.iter().any(|el| el == account) {
-                true => Ok(true),
-                false => Err(<Error<T>>::AddressNotOwned),
+                true => true,
+                false => false,
             }
         }
 
-        pub fn is_address_owned_by_anyone(address: &Vec<u8>) -> Result<bool, Error<T>> {
-            let owners = <AddressOwners<T>>::get(address).into_inner();
-            match owners.len() == 0 {
-                true => Ok(true),
-                false => Err(<Error<T>>::AddressOwned),
-            }
-        }
-
-        pub fn not_in_white_list(list_of: &Vec<u8>, list_el: &Vec<u8>) -> Result<bool, Error<T>> {
-            let white_list = <WhiteLists<T>>::get(list_of).into_inner();
-            match white_list.iter().any(|el| el == list_el) {
-                true => Err(<Error<T>>::AddressInWhiteList),
-                false => Ok(true),
-            }
-        }
-
-        pub fn not_in_black_list(list_of: &Vec<u8>, list_el: &Vec<u8>) -> Result<bool, Error<T>> {
-            let black_list = <BlackLists<T>>::get(list_of).into_inner();
-            match black_list.iter().any(|el| el == list_el) {
-                true => Err(<Error<T>>::AddressInBlackList),
-                false => Ok(true),
-            }
-        }
-
-        pub fn has_white_list(address: &Vec<u8>) -> Result<bool, Error<T>> {
+        pub fn has_white_list(address: &Vec<u8>) -> bool {
             let white_list = <WhiteLists<T>>::get(address).into_inner();
             match white_list.len() > 0 {
-                true => Ok(true),
-                false => Ok(false),
+                true => true,
+                false => false,
             }
         }
 
-        pub fn white_list_contains_address(list_of: &Vec<u8>, list_el: &Vec<u8>) -> Result<bool, Error<T>> {
+        pub fn in_white_list(list_of: &Vec<u8>, list_el: &Vec<u8>) -> bool {
             let white_list  = <WhiteLists<T>>::get(list_of).into_inner();
             match white_list.iter().any(|el| el == list_el) {
-                true => Ok(true),
-                false => Ok(false),
+                true => true,
+                false => false,
             }
         }
+
+        pub fn not_in_white_list(list_of: &Vec<u8>, list_el: &Vec<u8>) -> bool {
+            let white_list = <WhiteLists<T>>::get(list_of).into_inner();
+            match white_list.iter().any(|el| el == list_el) {
+                true => false,
+                false => true,
+            }
+        }
+
+        pub fn not_in_black_list(list_of: &Vec<u8>, list_el: &Vec<u8>) -> bool {
+            let black_list = <BlackLists<T>>::get(list_of).into_inner();
+            match black_list.iter().any(|el| el == list_el) {
+                true => false,
+                false => true,
+            }
+        }
+
     }
 }
