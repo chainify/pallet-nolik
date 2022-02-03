@@ -61,7 +61,7 @@ This simple but powerful combination allows communication between users without 
 
 Include this line to `/runtime/Cargo.toml`
 ```
-pallet-nolik = { version = "0.1.0-dev", default-features = false, git = "https://github.com/chainify/pallet-nolik" }
+pallet-nolik = { version = "0.1.1-dev", default-features = false, git = "https://github.com/chainify/pallet-nolik" }
 ```
 In the same fale add
 ```
