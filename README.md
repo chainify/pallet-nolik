@@ -12,7 +12,7 @@ That is possible due to a combination of blockchain and [IPFS](https://ipfs.io) 
 
 Pallet logic allows the creation of rules for programmable messages and embeds them to any Substrate-based chain.
 With that, it is possible to control who to receive messages from on a cryptographic (blockchain) level.
-That can be done due to the ability to create white lists (or black lists) of senders.
+That can be done due to the ability to create whitelists (or blacklists) of senders.
 
 ## Key Features
 The protocol allows to:
@@ -49,9 +49,9 @@ The file with encrypted content is stored in the IPFS network.
   - The public key of a user is his address at the same time.
 - Sending permissions
   - The message can be sent and broadcasted only if the sender has a right to do it.
-  The rights are set by the recipient and configured with a white list and a black list of senders.
+  The rights are set by the recipient and configured with a whitelist and a blacklist of senders.
   If the sender has a right to send the message it will be broadcasted through the network, otherwise, it will be rejected.
-  - Create white lists and black lists or senders.
+  - Create whitelists and blacklists or senders.
 - Download the code from GitHub, compile it and use it.
 No need to trust that the open-source code is similar to the downloaded app.
 
@@ -63,7 +63,7 @@ Include this line to `/runtime/Cargo.toml`
 ```
 pallet-nolik = { version = "0.1.1-dev", default-features = false, git = "https://github.com/chainify/pallet-nolik" }
 ```
-In the same fale add
+In the same file add
 ```
 [features]
 default = ["std"]
@@ -93,10 +93,10 @@ impl pallet_nolik::Config for Runtime {
 }
 ```
 
-You can find the basic pallet configuration in `parameters_types!` block.
+You can find the basic pallet configuration in the `parameter_types!` block.
 - `MaxAddressOwners` is for the maximum number of owners of a particular address
-- `MaxWhiteListAddress` is for the maximum number of addresses in the while list of a particular address
-- `MaxBlackListAddress` is for the maximum number of addresses in the black list of a particular address
+- `MaxWhiteListAddress` is for the maximum number of addresses in the whitelist of a particular address
+- `MaxBlackListAddress` is for the maximum number of addresses in the blacklist of a particular address
 
 
 ### Substrate node with a built-in Nolik pallet
@@ -114,7 +114,7 @@ You can also use Docker with everything set up.
 First, install [Docker](https://docs.docker.com/get-docker/) and
 [Docker Compose](https://docs.docker.com/compose/install/).
 
-Then run the following command to start a single node development chain.
+Then, in the [substrate-nolik-dev repo](https://github.com/chainify/substrate-nolik-dev.git) run the following command to start a single node development chain.
 
 ```
 docker compose up -d
@@ -135,7 +135,7 @@ docker logs -f node-nolik -n 200
 
 ### Using with UI
 After launching the node go to [PolkadotJS](https://polkadot.js.org/apps) page.
-In the top left corner select in the `DEVELOPMENT` section select the local node.
+In the top left corner, in the `DEVELOPMENT` section select the _Local Node_.
 After a successful connection, you will be able to try out the extrinsics in the Nolik pallet.
 
 Go to the `Developer` section in the top center of the page and select `Extrinsincs` menu and then chouse `nolik` extrinsic.
@@ -156,20 +156,20 @@ Each time the message is sent, the network validates the owner before broadcasti
 That is done for testing purposes.
 ### addToWhiteList
 - `addTo` - a Blake2 128 Hash.
-It's a hash of an address that adds other addresses to its white list.
-A White list is a set of addresses that have permission to send the message to a particular address.
-If the white list is empty the message will be accepted from any sender unless it is not in the black list.
-If the white list is not empty the message will be accepted only from addresses in list.
+It's a hash of an address that adds other addresses to its whitelist.
+A whitelist is a set of addresses that have permission to send the message to a particular address.
+If the whitelist is empty the message will be accepted from any sender unless it is not in the blacklist.
+If the whitelist is not empty the message will be accepted only from addresses in list.
 - `newAddress` - a Blake 128 Hash. It's a hash of an address that is going to be added to the white the list.
-The same address cannot be on the white list and in the black list at the same time.
+The same address cannot be on the whitelist and in the blacklist at the same time.
 
 ### addToBlackList
 - `addTo` - a Blake2 128 Hash.
-It's a hash of an address that adds other addresses to its black list.
-A Black list is a set of addresses that DO NOT have permission to send the message to a particular address.
-If the black list is empty the message will be accepted from any sender unless there are no white list restrictions.
-- `newAddress` - a Blake 128 Hash. It's a hash of an address that is going to be added to the black list.
-The same address cannot be on the black list and in the white list at the same time.
+It's a hash of an address that adds other addresses to its blacklist.
+A blacklist is a set of addresses that DO NOT have permission to send the message to a particular address.
+If the blacklist is empty the message will be accepted from any sender unless there are no whitelist restrictions.
+- `newAddress` - a Blake 128 Hash. It's a hash of an address that is going to be added to the blacklist.
+The same address cannot be on the blacklist and in the whitelist at the same time.
 
 ### sendMessage
 - `sender` - a Blake 128 Hash. It's a hash of an address that sends the message. 
@@ -177,7 +177,7 @@ This address should be owned by the account.
 If it is not owned the message will be rejected by the network.
 - `recipient` - a Blake 128 Hash. It's a hash of an address that should receive the message.
 The message will be received only if the sender has a right to send the message.
-Those rights are controlled by the recipient through a white list and a black list of senders.
+Those rights are controlled by the recipient through a whitelist and a blacklist of senders.
 If the sender does not have a right to send the message it will be rejected by the network.
 - `ipfsId` - an IPFS hash of a file that contains the message to the recipient.
 
@@ -186,16 +186,16 @@ Use this sample scenario to try out the extrinsics.
 1. Select `ALICE` as an account
 2. Select `addOwner` method
 3. Provide address `33955c59b47da83d1cade50f724a6993`
-4. Sign the transaction
+4. Sign and submit the transaction
 
 Now Alice is the owner of `33955c59b47da83d1cade50f724a6993` address
 
 5. Switch account to `BOB`
 6. Select `addOwner` method
 7. Provide address `de4bd602c18641eb56ee1104ba76c5f2`
-8. Sign the transaction
+8. Sign and submit the transaction
 9. Provide another address `4d4c14c40d1b7ecb942455794693fa68`
-10. Sign the transaction
+10. Sign and submit the transaction
 
 Now Bob is the owner of `de4bd602c18641eb56ee1104ba76c5f2` and `4d4c14c40d1b7ecb942455794693fa68` addresses
 
@@ -203,30 +203,30 @@ Now Bob is the owner of `de4bd602c18641eb56ee1104ba76c5f2` and `4d4c14c40d1b7ecb
 12. Select `addToBlackList` method
 13. Provide `addTo` address `33955c59b47da83d1cade50f724a6993`
 14. Provide `newAddress` address `de4bd602c18641eb56ee1104ba76c5f2`
-15. Sign the transaction
+15. Sign and submit the transaction
 16. Select `addToWhiteList` method
 17. Provide `addTo` address `33955c59b47da83d1cade50f724a6993`
 18. Provide `newAddress` address `4d4c14c40d1b7ecb942455794693fa68`
 19. Sigth the transaction
 
-At this point of time Alice added address `de4bd602c18641eb56ee1104ba76c5f2` to the black list and `4d4c14c40d1b7ecb942455794693fa68` address to the white list.
+At this point of time Alice added address `de4bd602c18641eb56ee1104ba76c5f2` to the blacklist and `4d4c14c40d1b7ecb942455794693fa68` address to the whitelist.
 
 20. Switch back to `BOB`
 21. Select `sendMessage` method
 21. Provide `sender` address `de4bd602c18641eb56ee1104ba76c5f2`
 22. Provide `recipient` address `33955c59b47da83d1cade50f724a6993`
 23. Provide `ipfsId` hash `QmcpfNLr43wdKMLbJ4nu4yBDKDxQggSRcLVEoUYFcjJNZR`
-24. Sign the transaction
+24. Sign and submit the transaction
 
-The transaction will fail because address `de4bd602c18641eb56ee1104ba76c5f2` is in the black list
+The transaction will fail because address `de4bd602c18641eb56ee1104ba76c5f2` is in the blacklist
 
 25. Change `sender` address to `4d4c14c40d1b7ecb942455794693fa68`
-26. Sign the transaction
+26. Sign and submit the transaction
 
-The message will be sent because `4d4c14c40d1b7ecb942455794693fa68` is in the white list
+The message will be sent because `4d4c14c40d1b7ecb942455794693fa68` is in the whitelist
 
 27. Switch account to `CHARLIE`
-28. Sign the same transaction
+28. Sign and submit the same transaction
 
 In this scenarion `CHARLIE` wants to send the message on behalf of `BOB` providing `4d4c14c40d1b7ecb942455794693fa68` address.
 The transaction will fail because `CHARLIE` does not own `4d4c14c40d1b7ecb942455794693fa68` address. 

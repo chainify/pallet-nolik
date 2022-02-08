@@ -26,15 +26,15 @@ pub mod pallet {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-        /// The maximum amount of Addresses a sinle account can own.
+        /// The maximum amount of Addresses a single account can own.
         #[pallet::constant]
         type MaxAddressOwners: Get<u32>;
 
-        /// The maximum amount of Addresses that can be added to white list
+        /// The maximum amount of Addresses that can be added to whitelist
         #[pallet::constant]
         type MaxWhiteListAddress: Get<u32>;
 
-        /// The maximum amount of Addresses that can be added to white list
+        /// The maximum amount of Addresses that can be added to blacklist
         #[pallet::constant]
         type MaxBlackListAddress: Get<u32>;
     }
@@ -44,21 +44,21 @@ pub mod pallet {
     pub enum Error<T> {
         /// Handles checking whether the address is owned by account
         AddressNotOwned,
-        /// Handkes checking whether trying to add the same address to white list or black list
+        /// Handles checking whether trying to add the same address to whitelist or blacklist
         SameAddress,
-        /// Handles checking whether the address in black list of recipient
+        /// Handles checking whether the address in blacklist of recipient
         AddressInBlackList,
-        /// Handles checking whether the address is already in white list
+        /// Handles checking whether the address is already in whitelist
         AlreadyInWhiteList,
-        /// Address is not in white list
+        /// Address is not in whitelist
         AddressNotInWhiteList,
-        /// Handles checking whether the address is already in black list
+        /// Handles checking whether the address is already in blacklist
         AlreadyInBlackList,
         /// An account cannot own more Addresses than `MaxAddressOwned`
         ExceedMaxAddressOwners,
-        /// An account cannot add Addresses to White List more than `MaxWhiteListAddress`
+        /// An account cannot add Addresses to whitelist more than `MaxWhiteListAddress`
         ExceedMaxWhiteListAddress,
-        /// An account cannot add Addresses to Black List more than `MaxWhiteListAddress`
+        /// An account cannot add Addresses to blacklist more than `MaxWhiteListAddress`
         ExceedMaxBlackListAddress,
     }
 
@@ -68,9 +68,9 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// A new owner was added to address \[address, account_id\]
         AddOwner(Vec<u8>, T::AccountId),
-        /// A new address was added to white list \[added_to, new_address\]
+        /// A new address was added to whitelist \[added_to, new_address\]
         AddWhiteList(Vec<u8>, Vec<u8>),
-        /// A new address was added to black list \[added_to, new_address\]
+        /// A new address was added to blacklist \[added_to, new_address\]
         AddBlackList(Vec<u8>, Vec<u8>),
         /// A new message was sent \[sender, recipient, ipfs_hash\]
         MessageSent(Vec<u8>, Vec<u8>, Vec<u8>),
@@ -84,13 +84,13 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn white_lists)]
-    /// Keeps track of addresse's white list.
+    /// Keeps track of addresse's whitelist.
     pub(super) type WhiteLists<T: Config> =
         StorageMap<_, Twox64Concat, Address, BoundedVec<Address, T::MaxAddressOwners>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn black_lists)]
-    /// Keeps track of addresse's black list.
+    /// Keeps track of addresse's blacklist.
     pub(super) type BlackLists<T: Config> =
         StorageMap<_, Twox64Concat, Address, BoundedVec<Address, T::MaxAddressOwners>, ValueQuery>;
 
