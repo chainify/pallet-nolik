@@ -26,7 +26,7 @@ pub mod pallet {
         /// Because this pallet emits events, it depends on the runtime's definition of an event.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
-        /// The maximum amount of Addresses a sinle account can own.
+        /// The maximum amount of Addresses a single account can own.
         #[pallet::constant]
         type MaxAddressOwners: Get<u32>;
 
@@ -34,7 +34,7 @@ pub mod pallet {
         #[pallet::constant]
         type MaxWhiteListAddress: Get<u32>;
 
-        /// The maximum amount of Addresses that can be added to whitelist
+        /// The maximum amount of Addresses that can be added to blacklist
         #[pallet::constant]
         type MaxBlackListAddress: Get<u32>;
     }
@@ -149,9 +149,10 @@ pub mod pallet {
 
         /// Add address to the whitelist.
         ///
-        /// A White list is a set of addresses that have permission to send the message to a particular address.
-        /// If the white list is empty the message will be accepted from any sender unless it is not in the black list.
-        /// If the white list is not empty the message will be accepted only from addresses in list.
+        /// A whitelist is a set of addresses that have permission to send the message to a particular recipient.
+        /// If the whitelist is empty the message will be accepted from any sender unless it is not in the blacklist.
+        /// If the whitelist is not empty the message will be accepted only from addresses in list.
+        /// The same address cannot be on the whitelist and in the blacklist at the same time.
         #[pallet::weight(10_000)]
         pub fn add_to_whitelist(
             origin: OriginFor<T>,
@@ -176,7 +177,10 @@ pub mod pallet {
 
         /// Add address to the blacklist.
         ///
-        /// If the blacklist exists and the sender's address is in it, the message will be rejected.
+        /// It's a hash of an address that adds other addresses to its blacklist.
+        /// A blacklist is a set of addresses that DO NOT have permission to send the message to a particular address.
+        /// If the blacklist is empty the message will be accepted from any sender unless there are no whitelist restrictions.
+        /// The same address cannot be on the blacklist and in the whitelist at the same time.
         #[pallet::weight(10_000)]
         pub fn add_to_blacklist(
             origin: OriginFor<T>,
@@ -201,7 +205,11 @@ pub mod pallet {
 
         /// Send the message.
         ///
-        /// The message will be received if the sender's address is not banned by the recipient.
+        /// This sender's address should be owned by the account.
+        /// If it is not owned the message will be rejected by the network.
+        /// The message will be received only if the sender has a right to send the message.
+        /// Those rights are controlled by the recipient through a whitelist and a blacklist of senders.
+        /// If the sender does not have a right to send the message it will be rejected by the network.
         #[transactional]
         #[pallet::weight(10_000)]
         pub fn send_message(
