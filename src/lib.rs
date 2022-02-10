@@ -30,11 +30,11 @@ pub mod pallet {
         #[pallet::constant]
         type MaxAddressOwners: Get<u32>;
 
-        /// The maximum amount of Addresses that can be added to white list
+        /// The maximum amount of Addresses that can be added to whitelist
         #[pallet::constant]
         type MaxWhiteListAddress: Get<u32>;
 
-        /// The maximum amount of Addresses that can be added to white list
+        /// The maximum amount of Addresses that can be added to whitelist
         #[pallet::constant]
         type MaxBlackListAddress: Get<u32>;
     }
@@ -44,21 +44,23 @@ pub mod pallet {
     pub enum Error<T> {
         /// Handles checking whether the address is owned by account
         AddressNotOwned,
-        /// Handkes checking whether trying to add the same address to white list or black list
+        /// Handles checking whether the account is already in the list of owners
+        AccountInOwners,
+        /// Handles checking whether trying to add the same address to whitelist or blacklist
         SameAddress,
-        /// Handles checking whether the address in black list of recipient
+        /// Handles checking whether the address is in the blacklist of recipient
         AddressInBlackList,
-        /// Handles checking whether the address is already in white list
+        /// Handles checking whether the address is already in the whitelist
         AlreadyInWhiteList,
-        /// Address is not in white list
+        /// Address is not in the whitelist
         AddressNotInWhiteList,
-        /// Handles checking whether the address is already in black list
+        /// Handles checking whether the address is already in the blacklist
         AlreadyInBlackList,
-        /// An account cannot own more Addresses than `MaxAddressOwned`
+        /// An address cannot have more owners than `MaxAddressOwners`
         ExceedMaxAddressOwners,
-        /// An account cannot add Addresses to White List more than `MaxWhiteListAddress`
+        /// An account cannot add more than `MaxWhiteListAddress` addresses to the whitelist 
         ExceedMaxWhiteListAddress,
-        /// An account cannot add Addresses to Black List more than `MaxWhiteListAddress`
+        /// An account cannot add more than `MaxBlackListAddress` addresses to the blacklist
         ExceedMaxBlackListAddress,
     }
 
@@ -68,9 +70,9 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// A new owner was added to address \[address, account_id\]
         AddOwner(Vec<u8>, T::AccountId),
-        /// A new address was added to white list \[added_to, new_address\]
+        /// A new address was added to whitelist \[added_to, new_address\]
         AddWhiteList(Vec<u8>, Vec<u8>),
-        /// A new address was added to black list \[added_to, new_address\]
+        /// A new address was added to blacklist \[added_to, new_address\]
         AddBlackList(Vec<u8>, Vec<u8>),
         /// A new message was sent \[sender, recipient, ipfs_hash\]
         MessageSent(Vec<u8>, Vec<u8>, Vec<u8>),
@@ -83,14 +85,14 @@ pub mod pallet {
         StorageMap<_, Twox64Concat, Address, BoundedVec<T::AccountId, T::MaxAddressOwners>, ValueQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn white_lists)]
-    /// Keeps track of addresse's white list.
+    #[pallet::getter(fn whitelists)]
+    /// Keeps track of addresse's whitelist.
     pub(super) type WhiteLists<T: Config> =
         StorageMap<_, Twox64Concat, Address, BoundedVec<Address, T::MaxAddressOwners>, ValueQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn black_lists)]
-    /// Keeps track of addresse's black list.
+    #[pallet::getter(fn blacklists)]
+    /// Keeps track of addresse's blacklist.
     pub(super) type BlackLists<T: Config> =
         StorageMap<_, Twox64Concat, Address, BoundedVec<Address, T::MaxAddressOwners>, ValueQuery>;
 
@@ -109,30 +111,49 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
 
+        /// Add new owner to address.
+        ///
+        /// One address can have multiple owners.
+        /// The maximum number of owners is specified in `MaxAddressOwners` parameter.
+        /// Only the owner of an address can add new owners.
+        /// If an address does not have any owners anyone can become the owner.
+        /// The message can be sent only from an address that has an owner.
+        /// Each time the message is sent, the network validates the owner before broadcasting the message.
         #[pallet::weight(10_000)]
         pub fn add_owner(
             origin: OriginFor<T>,
             address: Vec<u8>,
+            owner: Option<T::AccountId>,
             ) -> DispatchResult {
 
-            let owner = ensure_signed(origin)?;
+            let account = ensure_signed(origin)?;
+            let new_owner = match owner {
+                Some(res) => res,
+                None => account.clone()
+            };
 
             let has_owners = Self::has_owners(&address);
             if has_owners {
-                ensure!(Self::is_owned(&owner, &address), <Error<T>>::AddressNotOwned);
+                ensure!(Self::is_owned(&new_owner, &address) == false, <Error<T>>::AccountInOwners);
+                ensure!(Self::is_owned(&account, &address), <Error<T>>::AddressNotOwned);
             }
             
 
             <AddressOwners<T>>::try_mutate(&address, |owner_vec| {
-                owner_vec.try_push(owner.clone())
+                owner_vec.try_push(new_owner.clone())
             }).map_err(|_| <Error<T>>::ExceedMaxAddressOwners)?;
 
-            Self::deposit_event(Event::AddOwner(address, owner));
+            Self::deposit_event(Event::AddOwner(address, new_owner));
             Ok(())
         }
 
+        /// Add address to the whitelist.
+        ///
+        /// A White list is a set of addresses that have permission to send the message to a particular address.
+        /// If the white list is empty the message will be accepted from any sender unless it is not in the black list.
+        /// If the white list is not empty the message will be accepted only from addresses in list.
         #[pallet::weight(10_000)]
-        pub fn add_to_white_list(
+        pub fn add_to_whitelist(
             origin: OriginFor<T>,
             add_to: Vec<u8>,
             new_address: Vec<u8>,
@@ -142,8 +163,8 @@ pub mod pallet {
 
             ensure!(add_to != new_address, <Error<T>>::SameAddress);
             ensure!(Self::is_owned(&account, &add_to), <Error<T>>::AddressNotOwned);
-            ensure!(Self::not_in_white_list(&add_to, &new_address), <Error<T>>::AlreadyInWhiteList);
-            ensure!(Self::not_in_black_list(&add_to, &new_address), <Error<T>>::AlreadyInBlackList);
+            ensure!(Self::not_in_whitelist(&add_to, &new_address), <Error<T>>::AlreadyInWhiteList);
+            ensure!(Self::not_in_blacklist(&add_to, &new_address), <Error<T>>::AlreadyInBlackList);
 
             <WhiteLists<T>>::try_mutate(&add_to, |address_vec| {
                 address_vec.try_push(new_address.clone())
@@ -153,8 +174,11 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Add address to the blacklist.
+        ///
+        /// If the blacklist exists and the sender's address is in it, the message will be rejected.
         #[pallet::weight(10_000)]
-        pub fn add_to_black_list(
+        pub fn add_to_blacklist(
             origin: OriginFor<T>,
             add_to: Vec<u8>,
             new_address:Vec<u8>,
@@ -164,8 +188,8 @@ pub mod pallet {
 
             ensure!(add_to != new_address, <Error<T>>::SameAddress);
             ensure!(Self::is_owned(&account, &add_to), <Error<T>>::AddressNotOwned);
-            ensure!(Self::not_in_white_list(&add_to, &new_address), <Error<T>>::AlreadyInWhiteList);
-            ensure!(Self::not_in_black_list(&add_to, &new_address), <Error<T>>::AlreadyInBlackList);
+            ensure!(Self::not_in_whitelist(&add_to, &new_address), <Error<T>>::AlreadyInWhiteList);
+            ensure!(Self::not_in_blacklist(&add_to, &new_address), <Error<T>>::AlreadyInBlackList);
 
             <BlackLists<T>>::try_mutate(&add_to, |address_vec| {
                 address_vec.try_push(new_address.clone())
@@ -175,6 +199,9 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Send the message.
+        ///
+        /// The message will be received if the sender's address is not banned by the recipient.
         #[transactional]
         #[pallet::weight(10_000)]
         pub fn send_message(
@@ -186,11 +213,11 @@ pub mod pallet {
             
             let account = ensure_signed(origin)?;
             ensure!(Self::is_owned(&account, &sender), <Error<T>>::AddressNotOwned);
-            ensure!(Self::not_in_black_list(&recipient, &sender), <Error<T>>::AddressInBlackList);
+            ensure!(Self::not_in_blacklist(&recipient, &sender), <Error<T>>::AddressInBlackList);
 
-            let with_white_list = Self::has_white_list(&recipient);
-            if with_white_list {
-                ensure!(Self::in_white_list(&recipient, &sender), <Error<T>>::AddressNotInWhiteList);
+            let with_whitelist = Self::has_whitelist(&recipient);
+            if with_whitelist {
+                ensure!(Self::in_whitelist(&recipient, &sender), <Error<T>>::AddressNotInWhiteList);
             }
 
             let sender_messages_count = match Self::messages_count(&sender) {
@@ -224,6 +251,7 @@ pub mod pallet {
                 false => false,
             }
         }
+
         pub fn is_owned(account: &T::AccountId, address: &Vec<u8>) -> bool {
             let owners = <AddressOwners<T>>::get(address).into_inner();
             match owners.iter().any(|el| el == account) {
@@ -232,33 +260,33 @@ pub mod pallet {
             }
         }
 
-        pub fn has_white_list(address: &Vec<u8>) -> bool {
-            let white_list = <WhiteLists<T>>::get(address).into_inner();
-            match white_list.len() > 0 {
+        pub fn has_whitelist(address: &Vec<u8>) -> bool {
+            let whitelist = <WhiteLists<T>>::get(address).into_inner();
+            match whitelist.len() > 0 {
                 true => true,
                 false => false,
             }
         }
 
-        pub fn in_white_list(list_of: &Vec<u8>, list_el: &Vec<u8>) -> bool {
-            let white_list  = <WhiteLists<T>>::get(list_of).into_inner();
-            match white_list.iter().any(|el| el == list_el) {
+        pub fn in_whitelist(recipient: &Vec<u8>, sender: &Vec<u8>) -> bool {
+            let whitelist  = <WhiteLists<T>>::get(recipient).into_inner();
+            match whitelist.iter().any(|el| el == sender) {
                 true => true,
                 false => false,
             }
         }
 
-        pub fn not_in_white_list(list_of: &Vec<u8>, list_el: &Vec<u8>) -> bool {
-            let white_list = <WhiteLists<T>>::get(list_of).into_inner();
-            match white_list.iter().any(|el| el == list_el) {
+        pub fn not_in_whitelist(add_to: &Vec<u8>, new_address: &Vec<u8>) -> bool {
+            let whitelist = <WhiteLists<T>>::get(add_to).into_inner();
+            match whitelist.iter().any(|el| el == new_address) {
                 true => false,
                 false => true,
             }
         }
 
-        pub fn not_in_black_list(list_of: &Vec<u8>, list_el: &Vec<u8>) -> bool {
-            let black_list = <BlackLists<T>>::get(list_of).into_inner();
-            match black_list.iter().any(|el| el == list_el) {
+        pub fn not_in_blacklist(add_to: &Vec<u8>, new_address: &Vec<u8>) -> bool {
+            let blacklist = <BlackLists<T>>::get(add_to).into_inner();
+            match blacklist.iter().any(|el| el == new_address) {
                 true => false,
                 false => true,
             }

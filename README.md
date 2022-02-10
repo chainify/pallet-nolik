@@ -152,8 +152,7 @@ Only the owner of an address can add new owners.
 If an address does not have any owners anyone can become the owner.
 The message can be sent only from an address that has an owner.
 Each time the message is sent, the network validates the owner before broadcasting the message.
-> Currently, it is possible to add only one owner.
-That is done for testing purposes.
+
 ### addToWhiteList
 - `addTo` - a Blake2 128 Hash.
 It's a hash of an address that adds other addresses to its white list.

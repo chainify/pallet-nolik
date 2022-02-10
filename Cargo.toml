@@ -1,6 +1,6 @@
 [package]
 name = 'pallet-nolik'
-version = '0.1.1-dev'
+version = '0.1.2-dev'
 description = 'Substrate FRAME pallet for communication between accounts.'
 authors = ['Chainify <https://github.com/chainify>']
 edition = '2021'

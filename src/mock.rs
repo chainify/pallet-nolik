@@ -1,5 +1,4 @@
 use crate as pallet_nolik;
-//use sp_core::H256;
 use sp_runtime::testing::H256;
 use frame_support::parameter_types;
 use frame_support::sp_io::TestExternalities;
